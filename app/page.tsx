@@ -1,65 +1,126 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from './lib/supabase'
 
 export default function Home() {
+  const [vendors, setVendors] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Obtener vendors
+        const { data: vendorsData, error: vendorsError } = await supabase
+          .from('vendors')
+          .select('*')
+        
+        if (vendorsError) throw vendorsError
+        setVendors(vendorsData || [])
+
+        // Obtener productos
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+        
+        if (productsError) throw productsError
+        setProducts(productsData || [])
+
+        setLoading(false)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-neutral-600">Cargando datos...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-neutral-50 p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">
+            🚀 InvoicePro USA
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-neutral-600">
+            Prueba de conexión con Supabase
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Vendors Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-bold text-neutral-900 mb-4 flex items-center">
+            <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm mr-3">
+              {vendors.length}
+            </span>
+            Vendors
+          </h2>
+          <div className="space-y-3">
+            {vendors.map((vendor) => (
+              <div 
+                key={vendor.id} 
+                className="border border-neutral-200 rounded-lg p-4 hover:border-primary-400 transition-colors"
+              >
+                <h3 className="font-semibold text-neutral-900">{vendor.name}</h3>
+                <p className="text-sm text-neutral-600 mt-1">{vendor.address}</p>
+                <div className="flex gap-4 mt-2 text-sm text-neutral-500">
+                  {vendor.email && <span>📧 {vendor.email}</span>}
+                  {vendor.phone && <span>📞 {vendor.phone}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
-  );
+
+        {/* Products Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-xl font-bold text-neutral-900 mb-4 flex items-center">
+            <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm mr-3">
+              {products.length}
+            </span>
+            Productos
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {products.map((product) => (
+              <div 
+                key={product.id} 
+                className="border border-neutral-200 rounded-lg p-4 hover:border-primary-400 transition-colors"
+              >
+                <h3 className="font-semibold text-neutral-900">{product.name}</h3>
+                <p className="text-sm text-neutral-600 mt-1">{product.description}</p>
+                <div className="flex gap-3 mt-2 text-xs text-neutral-500">
+                  {product.upc && <span className="bg-neutral-100 px-2 py-1 rounded">UPC: {product.upc}</span>}
+                  {product.category && <span className="bg-neutral-100 px-2 py-1 rounded">{product.category}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Success Message */}
+        <div className="mt-8 bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <p className="text-primary-800 font-medium">
+            ✅ Conexión exitosa con Supabase
+          </p>
+          <p className="text-primary-600 text-sm mt-1">
+            Encontrados: {vendors.length} vendor(s) y {products.length} producto(s)
+          </p>
+        </div>
+      </div>
+    </main>
+  )
 }
