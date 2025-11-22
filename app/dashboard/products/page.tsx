@@ -10,14 +10,12 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 interface Product {
   id: string
   name: string
-  sku: string
-  upc: string
-  category: string
-  description: string
-  vendor_id: string
-  vendors?: {
-    name: string
-  }
+  sku: string | null
+  upc: string | null
+  category: string | null
+  description: string | null
+  vendor_id: string | null
+  vendor_name: string | null
 }
 
 interface Vendor {
@@ -65,7 +63,22 @@ export default function ProductsPage() {
         .order('name')
 
       if (error) throw error
-      setProducts(data || [])
+
+      // Transformar datos
+      const transformedData: Product[] = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        upc: item.upc,
+        category: item.category,
+        description: item.description,
+        vendor_id: item.vendor_id,
+        vendor_name: Array.isArray(item.vendors) 
+          ? item.vendors[0]?.name || null 
+          : item.vendors?.name || null,
+      }))
+
+      setProducts(transformedData)
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
@@ -256,7 +269,7 @@ export default function ProductsPage() {
                         </span>
                       ) : '-'}
                     </td>
-                    <td className="px-6 py-4 text-gray-700">{product.vendors?.name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-700">{product.vendor_name || '-'}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button

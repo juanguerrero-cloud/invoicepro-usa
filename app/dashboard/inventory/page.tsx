@@ -7,23 +7,25 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+interface InventoryItem {
+  qty_on_hand: number
+  qty_store: number
+  reorder_point: number
+  sales_velocity: number
+}
+
 interface Product {
   id: string
   name: string
-  sku: string
-  upc: string
-  category: string
-  description: string
-  vendor_id: string
-  vendors?: {
+  sku: string | null
+  upc: string | null
+  category: string | null
+  description: string | null
+  vendor_id: string | null
+  vendors: {
     name: string
-  }
-  inventory?: {
-    qty_on_hand: number
-    qty_store: number
-    reorder_point: number
-    sales_velocity: number
-  }[]
+  } | null
+  inventory: InventoryItem[] | null
 }
 
 export default function InventoryPage() {
@@ -58,11 +60,24 @@ export default function InventoryPage() {
 
       if (error) throw error
 
-      setProducts(data || [])
+      // Transformar datos para que coincidan con el tipo Product
+      const transformedData: Product[] = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        upc: item.upc,
+        category: item.category,
+        description: item.description,
+        vendor_id: item.vendor_id,
+        vendors: Array.isArray(item.vendors) ? item.vendors[0] || null : item.vendors,
+        inventory: item.inventory,
+      }))
+
+      setProducts(transformedData)
 
       // Extraer categorias unicas
-      const uniqueCategories = [...new Set(data?.map(p => p.category).filter(Boolean))]
-      setCategories(uniqueCategories as string[])
+      const uniqueCategories = [...new Set(transformedData.map(p => p.category).filter(Boolean))] as string[]
+      setCategories(uniqueCategories)
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {

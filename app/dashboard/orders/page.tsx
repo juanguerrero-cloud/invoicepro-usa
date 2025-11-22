@@ -7,27 +7,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-interface ProductWithInventory {
-  id: string
-  name: string
-  sku: string
-  category: string
-  vendor_id: string
-  vendors?: {
-    id: string
-    name: string
-  }
-  inventory?: {
-    qty_on_hand: number
-    reorder_point: number
-    sales_velocity: number
-  }[]
-  price_history?: {
-    price: number
-    vendor_id: string
-  }[]
-}
-
 interface OrderItem {
   product_id: string
   product_name: string
@@ -42,7 +21,7 @@ interface OrderItem {
 }
 
 export default function OrdersPage() {
-  const [products, setProducts] = useState<ProductWithInventory[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [loading, setLoading] = useState(true)
   const [daysToOrder, setDaysToOrder] = useState(7)
@@ -83,9 +62,10 @@ export default function OrdersPage() {
   const calculateSuggestedOrders = () => {
     const items: OrderItem[] = []
 
-    products.forEach(product => {
+    products.forEach((product: any) => {
       const inventory = product.inventory?.[0]
       const latestPrice = product.price_history?.[0]?.price || 0
+      const vendorData = Array.isArray(product.vendors) ? product.vendors[0] : product.vendors
 
       if (!inventory) return
 
@@ -110,7 +90,7 @@ export default function OrdersPage() {
           suggested_qty: suggestedQty,
           unit_price: latestPrice,
           total_price: suggestedQty * latestPrice,
-          vendor_name: product.vendors?.name || 'Sin proveedor',
+          vendor_name: vendorData?.name || 'Sin proveedor',
           selected: true,
         })
       }
@@ -166,7 +146,7 @@ export default function OrdersPage() {
         const { data: order, error: orderError } = await supabase
           .from('replenishments')
           .insert({
-            vendor_id: null, // Podrias buscar el vendor_id aqui
+            vendor_id: null,
             status: 'pending',
             total_estimated: vendorTotal,
             notes: `Orden generada automaticamente - ${items.length} productos`,
@@ -405,7 +385,7 @@ export default function OrdersPage() {
           </div>
           <h3 className="text-lg font-medium text-gray-800 mb-2">Genera tu primera orden</h3>
           <p className="text-gray-500 max-w-md mx-auto">
-            Configura los parametros arriba y haz click en "Calcular Ordenes" para ver los productos que necesitan reposicion.
+            Configura los parametros arriba y haz click en &quot;Calcular Ordenes&quot; para ver los productos que necesitan reposicion.
           </p>
         </div>
       )}
