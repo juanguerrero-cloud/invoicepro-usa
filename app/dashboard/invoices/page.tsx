@@ -33,6 +33,28 @@ interface ParsedInvoice {
   notes: string
 }
 
+// Funcion para normalizar nombres (quitar espacios extra, puntos, etc.)
+function normalizeVendorName(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/\./g, '')      // Quitar puntos
+    .replace(/,/g, '')       // Quitar comas
+    .replace(/\s+/g, ' ')    // Multiples espacios a uno solo
+    .replace(/INC$/i, '')    // Quitar "INC" al final
+    .replace(/LLC$/i, '')    // Quitar "LLC" al final
+    .replace(/CORP$/i, '')   // Quitar "CORP" al final
+    .trim()
+}
+
+// Funcion para normalizar nombres de productos
+function normalizeProductName(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 50) // Primeros 50 caracteres para comparacion
+}
+
 export default function InvoicesPage() {
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -113,21 +135,26 @@ export default function InvoicesPage() {
     setSaveStatus('Buscando proveedor...')
 
     try {
-      // 1. Buscar o crear vendor
+      // 1. Buscar o crear vendor con mejor deteccion de duplicados
       let vendorId = null
       if (parsedData.vendorName) {
         setSaveStatus('Verificando proveedor...')
         
-        // Buscar vendor existente
-        const { data: existingVendor } = await supabase
+        const normalizedNewVendor = normalizeVendorName(parsedData.vendorName)
+        
+        // Obtener todos los vendors y comparar normalizados
+        const { data: allVendors } = await supabase
           .from('vendors')
-          .select('id')
-          .ilike('name', `%${parsedData.vendorName.split(' ')[0]}%`)
-          .limit(1)
-          .single()
+          .select('id, name')
+        
+        // Buscar coincidencia normalizada
+        const existingVendor = allVendors?.find(v => 
+          normalizeVendorName(v.name) === normalizedNewVendor
+        )
 
         if (existingVendor) {
           vendorId = existingVendor.id
+          setSaveStatus(`Proveedor encontrado: ${existingVendor.name}`)
         } else {
           // Crear nuevo vendor
           setSaveStatus('Creando proveedor nuevo...')
@@ -138,6 +165,7 @@ export default function InvoicesPage() {
               address: parsedData.vendorAddress || '',
               phone: parsedData.vendorPhone || '',
               contact_email: parsedData.vendorEmail || '',
+              delivery_days: 3,
             })
             .select()
             .single()
@@ -168,18 +196,24 @@ export default function InvoicesPage() {
 
       // 3. Procesar cada producto
       if (parsedData.products && parsedData.products.length > 0) {
+        // Obtener todos los productos existentes para comparacion
+        const { data: allProducts } = await supabase
+          .from('products')
+          .select('id, name')
+
         for (let i = 0; i < parsedData.products.length; i++) {
           const product = parsedData.products[i]
           setSaveStatus(`Procesando producto ${i + 1} de ${parsedData.products.length}...`)
 
-          // Buscar producto existente por nombre
+          const normalizedNewProduct = normalizeProductName(product.description)
+
+          // Buscar producto existente con nombre similar
           let productId = null
-          const { data: existingProduct } = await supabase
-            .from('products')
-            .select('id')
-            .ilike('name', `%${product.description.substring(0, 20)}%`)
-            .limit(1)
-            .single()
+          const existingProduct = allProducts?.find(p => 
+            normalizeProductName(p.name) === normalizedNewProduct ||
+            normalizeProductName(p.name).includes(normalizedNewProduct.substring(0, 20)) ||
+            normalizedNewProduct.includes(normalizeProductName(p.name).substring(0, 20))
+          )
 
           if (existingProduct) {
             productId = existingProduct.id
@@ -197,6 +231,9 @@ export default function InvoicesPage() {
 
             if (productError) throw productError
             productId = newProduct.id
+
+            // Agregar a la lista local para evitar duplicados en la misma factura
+            allProducts?.push({ id: productId, name: product.description })
 
             // Crear registro de inventario inicial
             await supabase
@@ -462,7 +499,7 @@ export default function InvoicesPage() {
 
               {/* Save Status */}
               {saveStatus && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm flex items-center gap-2">
+                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${saved ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
                   {!saved && (
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
